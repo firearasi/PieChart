@@ -7,10 +7,10 @@ Created on Sat Mar 30 23:44:38 2019
 """
 
 import sys
-from PyQt5.QtWidgets import QTableView,QSplitter,QSizePolicy, QApplication, QWidget, QPushButton, QGridLayout, QGroupBox, QDialog, QVBoxLayout, QLabel
+from PyQt5.QtWidgets import QTableView,QSplitter,QSizePolicy, QApplication, QWidget, QPushButton, QGridLayout
 from PyQt5.QtGui import QIcon
-from PyQt5.QtCore import pyqtSlot, QCoreApplication
-from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt5.QtCore import QCoreApplication
+from PyQt5 import QtCore, QtWidgets
 
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
@@ -18,14 +18,13 @@ from matplotlib.figure import Figure
 class PieChartDataModel(QtCore.QAbstractTableModel):
     def __init__(self, labels, data, explodes, parent = None):
         super(PieChartDataModel,self).__init__(parent)
-        self.rows=len(data)
         self.columns=3
         self.labels=labels
         self.data=data
         self.explodes=explodes
         
     def rowCount(self, parent = QtCore.QModelIndex()):
-        return self.rows
+        return len(self.labels)
     def columnCount(self, parent =  QtCore.QModelIndex()):
         return self.columns
     def data(self,index,role=QtCore.Qt.DisplayRole):
@@ -33,7 +32,7 @@ class PieChartDataModel(QtCore.QAbstractTableModel):
         column = index.column()
         if role != QtCore.Qt.DisplayRole:
             return QtCore.QVariant()
-        if row >= self.rows or row < 0 or column >= self.columns or column < 0:
+        if row >= self.rowCount() or row < 0 or column >= self.columns or column < 0:
             return QtCore.QVariant();
         if index.column()==0:
             return QtCore.QVariant(self.labels[index.row()])
@@ -59,27 +58,46 @@ class PieChartDataModel(QtCore.QAbstractTableModel):
             return QtCore.QVariant('Item {}'.format(section))
         
     def setData(self, index, value, role = QtCore.Qt.EditRole):
+        def toNumber(v):
+            try:
+                return float(v)
+            except:
+                return 0
         row = index.row()
         column = index.column()
         if role!=QtCore.Qt.EditRole:
             return False
-        if row >= self.rows or row < 0 or column >= self.columns or column < 0:
+        if row >= self.rowCount() or row < 0 or column >= self.columns or column < 0:
             return False
         if column == 0:
             self.labels[row] = value
         elif column==1:
-            self.data[row] = float(value)
+            self.data[row] = toNumber(value)
         elif column==2:
-            self.explodes[row] = float(value)
+            self.explodes[row] = toNumber(value)
         self.dataChanged.emit(index, index, [QtCore.Qt.EditRole, QtCore.Qt.DisplayRole])
         return True
+        
+    def insertRow(self, row, parent = QtCore.QModelIndex()):
+        if row < 0 or row > self.rowCount():
+            return
+        self.beginInsertRows(parent, row, row);
+        self.labels.insert(row, 'Item {}'.format(row))
+        self.data.insert(row, 20)
+        self.explodes.insert(row, 0)
+        self.endInsertRows()
+        topLeft = self.index(row, 0)
+        bottomRight = self.index(row, 2)
+        self.dataChanged.emit(topLeft, 
+            bottomRight, 
+            [QtCore.Qt.EditRole, QtCore.Qt.DisplayRole])
+        return
     
     def flags(self, index):
         flags = super(self.__class__,self).flags(index)
         flags |= QtCore.Qt.ItemIsEditable
         #flags |= QtCore.Qt.ItemIsSelectable
         #flags |= QtCore.Qt.ItemIsEnabled
-      
         return flags
         
     def selectionChanged(self,selected, deselected,aLabel):  
@@ -100,7 +118,6 @@ class App(QWidget):
         self.left = (1920-self.width)/2
         self.top = (1080-self.height)/2
         self.initUI()
-
  
     def initUI(self):
         self.setWindowTitle(self.title)
@@ -111,29 +128,37 @@ class App(QWidget):
             labels=['Frogs', 'Hogs', 'Dogs', 'Logs'],
             data=[22, 30, 45, 10],
             explodes=[0.1, 0.1, 0, 0])
-        table = QTableView(self)
-        table.setModel(self.myModel)
-        #table.setEditTriggers(QtWidgets.QAbstractItemView.AllEditTriggers)
-        splitter.addWidget(table)
+        self.table = QTableView(self)
+        self.table.setModel(self.myModel)
+        self.table.horizontalHeader().setSectionResizeMode(QtWidgets.QHeaderView.Stretch);
+       
+        splitter.addWidget(self.table)
         splitter.addWidget(PlotCanvas(self.myModel, width=5, height=4, parent = self))
         
         layout.addWidget(splitter,0,0,5,12)
-        changeButton=QPushButton('Change',self)
-        layout.addWidget(changeButton,5,0)
         
+        appendButton=QPushButton('Append',self)
+        appendButton.clicked.connect(self.append)
+        layout.addWidget(appendButton,5,0)
         
-        changeButton.clicked.connect(self.change)
-
-
+        insertButton=QPushButton('Insert',self)
+        insertButton.clicked.connect(self.insert)
+        layout.addWidget(insertButton,5,1)
         self.setLayout(layout)
         self.show()
         self.activateWindow() 
     
-    def change(self):
-        self.myModel.setData(self.myModel.index(0,0), 'Toads')  
-        self.myModel.setData(self.myModel.index(2,2), 0.1)          
+    def append(self):
+        self.myModel.insertRow(self.myModel.rowCount())         
         return
 
+    def insert(self):
+        select = self.table.selectionModel().selectedRows()
+        index = select[0].row() if len(select)>0 else 0
+        self.myModel.insertRow(index)
+        return
+        
+        
 class PlotCanvas(FigureCanvas):
     def __init__(self,  model, width=5, height=4, dpi=100,parent=None):
         fig = Figure(figsize=(width, height), dpi=dpi)
@@ -152,7 +177,6 @@ class PlotCanvas(FigureCanvas):
     def setModel(self, model):
         self.model = model
         self.model.dataChanged.connect(self.plotChanged)
-        
         self.plot()
  
     def plot(self):
@@ -175,5 +199,6 @@ if __name__ == '__main__':
     app = QCoreApplication.instance()
     if app is None:
         app = QApplication(sys.argv)
+    app.setWindowIcon(QIcon('pie2.png'))
     ex = App()
-    app.exec_()
+    sys.exit(app.exec_())

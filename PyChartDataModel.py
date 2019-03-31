@@ -97,8 +97,6 @@ class PieChartDataModel(QtCore.QAbstractTableModel):
     def flags(self, index):
         flags = super(self.__class__,self).flags(index)
         flags |= QtCore.Qt.ItemIsEditable
-        #flags |= QtCore.Qt.ItemIsSelectable
-        #flags |= QtCore.Qt.ItemIsEnabled
         return flags
         
     def selectionChanged(self,selected, deselected,aLabel):  

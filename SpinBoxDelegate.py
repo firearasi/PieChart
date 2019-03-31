@@ -13,13 +13,19 @@ class SpinBoxDelegate(QStyledItemDelegate):
             editor.setFrame(False)
             editor.setMinimum(0)
             editor.setMaximum(200)
+            valueChangedSlot = lambda x:self.setModelData(editor, index.model(), index)
+            editor.valueChanged.connect(valueChangedSlot)
         elif index.column() == 2:
             editor = QSlider(parent, orientation=Qt.Horizontal)
             #editor.setFrame(False) 
             editor.setMinimum(-100)
             editor.setMaximum(100)
+            valueChangedSlot = lambda x:self.setModelData(editor, index.model(), index)
+            editor.valueChanged.connect(valueChangedSlot)
         else:
             editor = QLineEdit(parent)
+            valueChangedSlot = lambda x:self.setModelData(editor, index.model(), index)
+            editor.textChanged.connect(valueChangedSlot)
         return editor
         
     def setEditorData(self, editor, index):

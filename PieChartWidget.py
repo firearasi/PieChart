@@ -1,53 +1,12 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Created on Sat Mar 30 23:44:38 2019
+from PySide2.QtWidgets import QTableView, QSplitter, QWidget, QPushButton, QGridLayout
+from PySide2 import QtWidgets
 
-@author: yan
-"""
-
-import sys
-from PyQt5.QtWidgets import QTableView,QSplitter, QApplication, QWidget, QPushButton, QGridLayout
-from PyQt5.QtGui import QIcon
-from PyQt5.QtCore import QCoreApplication
-from PyQt5 import QtWidgets
-
-from PyQt5.QtWidgets import QStyledItemDelegate, QSpinBox
-from PyQt5.QtCore import Qt
 from PyChartDataModel import PieChartDataModel
 from PlotCanvas import PlotCanvas
 
+from SpinBoxDelegate import SpinBoxDelegate
 
-class SpinBoxDelegate(QStyledItemDelegate):
-    def __init__(self, parent=None):
-        super(SpinBoxDelegate, self).__init__(parent)
-        return
-        
-    def createEditor(self, parent, option, index):
-        editor = QSpinBox(parent)
-        editor.setFrame(False)
-        editor.setMinimum(0)
-        editor.setMaximum(100)
-        return editor
-        
-    def setEditorData(self, editor, index):
-        if index.column() > 0:
-            value = index.model().data(index, Qt.EditRole)
-            editor.setValue(value)
-        return
-        
-    def setModelData(self, editor, model, index):
-        if index.column() > 0:
-            editor.interpretText()
-            value=float(editor.value())
-            model.setData(index, value, Qt.EditRole)
-        return
-        
-    def updateEditorGeometry(self, editor, option, index):
-        editor.setGeometry(option.rect)
-        
-
-class App(QWidget): 
+class PieChartWidget(QWidget): 
     def __init__(self):
         super().__init__()
         self.title = 'PyQt5 matplotlib PieChart'
@@ -65,7 +24,7 @@ class App(QWidget):
         self.myModel = PieChartDataModel(
             labels=['Frogs', 'Hogs', 'Dogs', 'Logs'],
             data=[22, 30, 45, 10],
-            explodes=[0.1, 0.1, 0, 0])
+            explodes=[0, 0, 10, 0])
         self.table = QTableView(self)
         self.table.setModel(self.myModel)
         self.delegate=SpinBoxDelegate()
@@ -73,7 +32,8 @@ class App(QWidget):
         self.table.horizontalHeader().setSectionResizeMode(QtWidgets.QHeaderView.Stretch);
        
         splitter.addWidget(self.table)
-        splitter.addWidget(PlotCanvas(self.myModel, width=5, height=4, parent = self))
+        self.canvas = PlotCanvas(self.myModel, width=5, height=4, parent = self)
+        splitter.addWidget(self.canvas)
         
         layout.addWidget(splitter,0,0,5,12)
         
@@ -109,13 +69,3 @@ class App(QWidget):
         for row in reversed(selectedRows):
             self.myModel.removeRow(row)
         return
-        
-
-
-if __name__ == '__main__':
-    app = QCoreApplication.instance()
-    if app is None:
-        app = QApplication(sys.argv)
-    app.setWindowIcon(QIcon('pie2.png'))
-    ex = App()
-    sys.exit(app.exec_())
